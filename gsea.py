@@ -7,6 +7,8 @@ Gene Set Enrichment Analysis
 Gene Set Enrichment Analysis
 """
 
+from collections import defaultdict
+
 
 def check_extreme_deviation(new_value, old_value, is_high_deviation):
     """
@@ -33,7 +35,7 @@ def calculate_enrichment_score(gene_expression_profile, gene_set, phenotype_labe
     Magnitude is obtained from phenotye_label_data
     :param gene_expression_profile: genes from a collection of samples
     :param gene_set: genes to check for in expression profile
-    :param phenotype_label_data: file containing: (gene) (correlation with phenotype)
+    :param phenotype_label_data: file containing: (gene) (correlation with phenotype)*
     :return: Enrichment score as int: most extreme deviation from zero
     """
     running_sum_statistic = 0
@@ -43,22 +45,31 @@ def calculate_enrichment_score(gene_expression_profile, gene_set, phenotype_labe
     for gene in gene_set:
         if gene in gene_expression_profile:
             # gene is in list, increment running sum
-            running_sum_statistic += phenotype_label_data[gene]
+            print(gene)
+            try:
+                running_sum_statistic += phenotype_label_data[gene][0]
 
-            # check if running_sum_statistic is highest deviation from zero
-            highest_deviation_from_zero = check_extreme_deviation(
-                running_sum_statistic,
-                highest_deviation_from_zero,
-                True)
+                # check if running_sum_statistic is highest deviation from zero
+                highest_deviation_from_zero = check_extreme_deviation(
+                    running_sum_statistic,
+                    highest_deviation_from_zero,
+                    True)
+
+            except IndexError:
+                pass  # correlation value was blank
         else:
             # gene isn't in list, decrement running sum
-            running_sum_statistic -= phenotype_label_data[gene]
+            try:
+                running_sum_statistic -= phenotype_label_data[gene][0]
 
-            # check if running_sum_statistic is lowest deviation from zero
-            lowest_deviation_from_zero = check_extreme_deviation(
-                running_sum_statistic,
-                lowest_deviation_from_zero,
-                False)
+                # check if running_sum_statistic is lowest deviation from zero
+                lowest_deviation_from_zero = check_extreme_deviation(
+                    running_sum_statistic,
+                    lowest_deviation_from_zero,
+                    False)
+
+            except IndexError:
+                pass  # correlation value was blank
 
     # if lowest deviation is further from zero than highest deviation, return lowest
     # otherwise return highest
@@ -82,11 +93,14 @@ def get_phenotype_label_data_from_file(filename):
     :return: dictionary with gene(string) and correlationWithPhenotypeValue(int)
              i.e. {'STAT1', -13}
     """
-    gene_to_phenotype_correlation_value = {}
+
+    gene_to_phenotype_correlation_value = defaultdict(list)
+
     with open(filename) as f:
         for line in f:
-            (gene, correlation_value) = line.split()
-            gene_to_phenotype_correlation_value[gene] = int(correlation_value)
+            current_gene_info = line.split()
+            # (gene, correlation_value) = line.split()
+            gene_to_phenotype_correlation_value[current_gene_info[0]] = [int(item) for item in current_gene_info[1:]]
 
     return gene_to_phenotype_correlation_value
 
@@ -101,7 +115,9 @@ if __name__ == "__main__":
     gene_to_enrichment_score = {}  #
 
     phenotype_label_data = get_phenotype_label_data_from_file('phenotype_label')
+
     gene_expression_profile = read_genes('gene_expression_profile.txt')
+
     gene_set = read_genes('gene_sets.txt')
 
     enrichment_score = calculate_enrichment_score(gene_expression_profile, gene_set, phenotype_label_data)
